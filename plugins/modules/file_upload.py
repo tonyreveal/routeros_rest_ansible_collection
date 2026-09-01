@@ -1,0 +1,99 @@
+#!/usr/bin/python
+# Copyright: Tony Reveal
+# GNU General Public License v3.0 or later (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.html)
+
+from ansible.module_utils.basic import AnsibleModule
+from ansible_collections.mikrotik.routeros_rest.plugins.module_utils.routeros_rest import RouterOSRestClient, RouterOSRestError
+
+DOCUMENTATION = r'''
+---
+module: file_upload
+short_description: Upload a file to RouterOS
+description:
+  - Uploads a local file to the RouterOS file store through the REST API.
+  - Existing files are not overwritten unless force is enabled.
+version_added: '1.0.0'
+author:
+  - Tony Reveal (https://github.com/tonyreveal)
+options:
+  host:
+    description: RouterOS REST base URL.
+    type: str
+    required: true
+  username:
+    description: RouterOS REST username.
+    type: str
+    required: true
+  password:
+    description: RouterOS REST password.
+    type: str
+    required: true
+    no_log: true
+  src:
+    description: Local source file.
+    type: path
+    required: true
+  dest:
+    description: Destination file name on RouterOS.
+    type: str
+    required: true
+  force:
+    description: Replace an existing destination file.
+    type: bool
+    default: false
+  validate_certs:
+    description: Validate the RouterOS TLS certificate.
+    type: bool
+    default: true
+  timeout:
+    description: HTTP timeout in seconds.
+    type: int
+    default: 30
+requirements:
+  - Python 3.
+  - RouterOS 7.x with REST API enabled.
+  - Ansible 2.16 or newer.
+attributes:
+  check_mode:
+    description: Does not upload a file in check mode.
+    support: partial
+'''
+EXAMPLES = r'''
+---
+- name: Upload a RouterOS export
+  mikrotik.routeros_rest.file_upload:
+    host: https://router.example.test
+    username: admin
+    password: secret
+    src: ./router.rsc
+    dest: router.rsc
+'''
+RETURN = r'''
+filename:
+  description: Destination file name.
+  returned: success
+  type: str
+'''
+
+
+def main() -> None:
+    module = AnsibleModule(argument_spec={"host": {"type": "str", "required": True}, "username": {"type": "str", "required": True}, "password": {"type": "str", "required": True, "no_log": True}, "src": {"type": "path", "required": True}, "dest": {"type": "str", "required": True}, "force": {"type": "bool", "default": False}, "validate_certs": {"type": "bool", "default": True}, "timeout": {"type": "int", "default": 30}}, supports_check_mode=True)
+    p = module.params
+    if not __import__("os").path.isfile(p["src"]):
+        module.fail_json(msg="src must name a readable local file")
+    client = RouterOSRestClient(p["host"], p["username"], p["password"], p["timeout"], p["validate_certs"])
+    try:
+        existing = client.get("file", {"name": p["dest"]})
+        if existing and not p["force"]:
+            module.exit_json(changed=False, filename=p["dest"])
+        if module.check_mode:
+            module.exit_json(changed=True, filename=p["dest"])
+        data = open(p["src"], "rb").read()
+        result = client.put("file", {"name": p["dest"], "contents": data.decode("utf-8")})
+        module.exit_json(changed=True, filename=p["dest"], result=result)
+    except (OSError, UnicodeDecodeError) as exc:
+        module.fail_json(msg=f"Unable to read src: {exc}")
+    except RouterOSRestError as exc:
+        module.fail_json(msg=str(exc))
+if __name__ == "__main__":
+    main()
