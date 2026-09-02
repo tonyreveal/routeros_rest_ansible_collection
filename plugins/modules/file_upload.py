@@ -11,7 +11,8 @@ module: file_upload
 short_description: Upload a file to RouterOS
 description:
   - Uploads a local file to the RouterOS file store through the REST API.
-  - Existing files are not overwritten unless force is enabled.
+  - If the destination exists and force is false, the module returns successfully without changing it.
+  - If force is true, the existing destination is deleted before the replacement is uploaded because RouterOS does not overwrite files with PUT.
 version_added: '1.0.0'
 author:
   - Tony Reveal (https://github.com/tonyreveal)
@@ -38,7 +39,7 @@ options:
     type: str
     required: true
   force:
-    description: Replace an existing destination file.
+    description: Delete and replace an existing destination file.
     type: bool
     default: false
   validate_certs:
@@ -57,6 +58,9 @@ attributes:
   check_mode:
     description: Does not upload a file in check mode.
     support: partial
+notes:
+  - The module compares destination names, not file contents.
+  - A forced replacement briefly removes the existing remote file before uploading the replacement.
 '''
 EXAMPLES = r'''
 ---
@@ -77,7 +81,19 @@ filename:
 
 
 def main() -> None:
-    module = AnsibleModule(argument_spec={"host": {"type": "str", "required": True}, "username": {"type": "str", "required": True}, "password": {"type": "str", "required": True, "no_log": True}, "src": {"type": "path", "required": True}, "dest": {"type": "str", "required": True}, "force": {"type": "bool", "default": False}, "validate_certs": {"type": "bool", "default": True}, "timeout": {"type": "int", "default": 30}}, supports_check_mode=True)
+    module = AnsibleModule(
+        argument_spec={
+            "host": {"type": "str", "required": True},
+            "username": {"type": "str", "required": True},
+            "password": {"type": "str", "required": True, "no_log": True},
+            "src": {"type": "path", "required": True},
+            "dest": {"type": "str", "required": True},
+            "force": {"type": "bool", "default": False},
+            "validate_certs": {"type": "bool", "default": True},
+            "timeout": {"type": "int", "default": 30},
+        },
+        supports_check_mode=True,
+    )
     p = module.params
     if not __import__("os").path.isfile(p["src"]):
         module.fail_json(msg="src must name a readable local file")
@@ -86,9 +102,15 @@ def main() -> None:
         existing = client.get("file", {"name": p["dest"]})
         if existing and not p["force"]:
             module.exit_json(changed=False, filename=p["dest"])
+        data = open(p["src"], "rb").read()
         if module.check_mode:
             module.exit_json(changed=True, filename=p["dest"])
-        data = open(p["src"], "rb").read()
+        if existing and p["force"]:
+            records = existing if isinstance(existing, list) else [existing]
+            file_id = records[0].get(".id") if records else None
+            if not file_id:
+                module.fail_json(msg=f"RouterOS did not return an internal ID for existing file {p['dest']!r}")
+            client.delete(f"file/{file_id}")
         result = client.put("file", {"name": p["dest"], "contents": data.decode("utf-8")})
         module.exit_json(changed=True, filename=p["dest"], result=result)
     except (OSError, UnicodeDecodeError) as exc:
