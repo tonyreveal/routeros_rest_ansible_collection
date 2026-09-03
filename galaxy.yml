@@ -34,25 +34,18 @@ license:
 # A list of tags you want to associate with the collection for indexing/searching. A tag name has the same character
 # requirements as 'namespace' and 'name'
 tags:
-- ansible
-- automation
 - backup
 - certificate
-- container
 - dhcp
 - diagnostics
 - dns
 - firewall
-- hotspot
-- ipv4
-- ipv6
 - lte
 - mikrotik
 - monitoring
 - network
 - ppp
 - qos
-- rest
 - routeros
 - routing
 - security
