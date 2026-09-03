@@ -41,7 +41,7 @@ requirements:
   - Python 3.
   - RouterOS 7.x with REST API enabled.
   - Ansible 2.16 or newer.
-attributes:
+attributes:/
   check_mode:
     description: Supports check mode without changing the device.
     support: full
@@ -56,7 +56,7 @@ def main() -> None:
         "validate_certs": {"type": "bool", "default": True},
         "timeout": {"type": "int", "default": 30},
     }, supports_check_mode=True)
-    run_info(module, "ip/firewall/connection-tracking", "settings")
+    run_info(module, "ip/firewall/connection/tracking", "print")
 
 if __name__ == "__main__":
     main()
