@@ -77,9 +77,15 @@ def main() -> None:
     p = module.params
     try:
         data = RouterOSRestClient(p["host"], p["username"], p["password"], p["timeout"], p["validate_certs"]).get("file", {"name": p["src"]})
-        if not data:
+        if isinstance(data, list):
+            records = [record for record in data if isinstance(record, dict)]
+            matching = [record for record in records if record.get("name") == p["src"]]
+            data = matching[0] if matching else (records[0] if len(records) == 1 else {})
+        if not isinstance(data, dict) or data.get("name") != p["src"]:
             module.fail_json(msg=f"RouterOS file does not exist: {p['src']}")
-        content = data.get("contents", "") if isinstance(data, dict) else ""
+        if "contents" not in data:
+            module.fail_json(msg=f"RouterOS did not return contents for file: {p['src']}")
+        content = data["contents"]
         if module.check_mode:
             module.exit_json(changed=True, dest=p["dest"])
         old = open(p["dest"], "r", encoding="utf-8").read() if __import__("os").path.exists(p["dest"]) else None
