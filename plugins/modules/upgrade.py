@@ -3,9 +3,7 @@
 # GNU General Public License v3.0 or later (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.html)
 
 from __future__ import annotations
-
 from ansible.module_utils.basic import AnsibleModule
-
 from ansible_collections.mikrotik.routeros_rest.plugins.module_utils.routeros_rest import (
     RouterOSRestClient,
     RouterOSRestError,
@@ -96,25 +94,36 @@ changed_reason:
   description: State decision explaining whether a package installation was started.
   returned: always
   type: str
+upgrade_available:
+  description: Whether RouterOS reported an available package upgrade.
+  returned: always
+  type: bool
 """
 
 
-def _record(value):
-    """Return the first REST record for singleton RouterOS responses."""
-    if isinstance(value, list):
-        return value[0] if value else {}
-    return value if isinstance(value, dict) else {}
+def _records(value):
+    """Yield all dictionaries in a RouterOS REST response."""
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _records(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _records(child)
 
 
 def _update_available(value):
     """Interpret RouterOS update status without depending on response casing."""
-    record = _record(value)
-    status = str(record.get("status", "")).lower()
-    installed = str(record.get("installed-version", ""))
-    latest = str(record.get("latest-version", ""))
-    if latest and installed and latest != installed:
-        return True
-    return "new version is available" in status or "update available" in status
+    for record in _records(value):
+        normalized = {str(key).replace("_", "-").lower(): item for key, item in record.items()}
+        status = str(normalized.get("status", "")).lower()
+        installed = str(normalized.get("installed-version", "")).strip()
+        latest = str(normalized.get("latest-version", "")).strip()
+        if latest and installed and latest != installed:
+            return True
+        if "new version is available" in status or "update available" in status:
+            return True
+    return False
 
 
 def main() -> None:
@@ -142,7 +151,8 @@ def main() -> None:
     )
     channel_changed = False
     try:
-        settings = _record(client.get("system/package/update"))
+        settings_response = client.get("system/package/update")
+        settings = next(iter(_records(settings_response)), {})
         if str(settings.get("channel", "")) != params["channel"]:
             client.post("system/package/update/set", {"channel": params["channel"]})
             channel_changed = True
@@ -164,6 +174,7 @@ def main() -> None:
         channel=params["channel"],
         result=result,
         changed_reason=changed_reason,
+        upgrade_available=update_available,
     )
 
 

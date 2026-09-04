@@ -3,9 +3,7 @@
 # GNU General Public License v3.0 or later (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.html)
 
 from __future__ import annotations
-
 from ansible.module_utils.basic import AnsibleModule
-
 from ansible_collections.mikrotik.routeros_rest.plugins.module_utils.routeros_rest import (
     RouterOSRestClient,
     RouterOSRestError,
@@ -104,10 +102,11 @@ def main() -> None:
     )
     try:
         state = client.get("system/routerboard")
-        record = state[0] if isinstance(state, list) and state else state
-        record = record if isinstance(record, dict) else {}
-        current = str(record.get("current-firmware", "")).strip().lower()
-        available = str(record.get("upgrade-firmware", "")).strip()
+        records = state if isinstance(state, list) else [state]
+        record = next((item for item in records if isinstance(item, dict)), {})
+        normalized = {str(key).replace("_", "-").lower(): value for key, value in record.items()}
+        current = str(normalized.get("current-firmware", "")).strip().lower()
+        available = str(normalized.get("upgrade-firmware", "")).strip()
         upgrade_available = bool(
             available
             and available.lower() not in {"no", "none", "false", "n/a", "-"}
