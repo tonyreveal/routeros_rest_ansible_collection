@@ -67,6 +67,7 @@ def main():
             d,
             p["state"],
             "vlan",
+            ignore_dynamic=True,
         )
     except RouterOSRestError as e:
         m.fail_json(msg=str(e))

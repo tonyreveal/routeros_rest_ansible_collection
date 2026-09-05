@@ -23,8 +23,20 @@ def matches(current: Any, desired: Any) -> bool:
     return str(current) == str(desired)
 
 
-def reconcile(module, client, path: str, query: Dict[str, Any], desired: Dict[str, Any], state: str, result_key: str):
-    existing = first(client.get(path, query=query))
+def reconcile(
+    module,
+    client,
+    path: str,
+    query: Dict[str, Any],
+    desired: Dict[str, Any],
+    state: str,
+    result_key: str,
+    ignore_dynamic: bool = False,
+):
+    records = client.get(path, query=query)
+    if ignore_dynamic and isinstance(records, list):
+        records = [record for record in records if str(record.get("dynamic", "no")).lower() not in {"yes", "true"}]
+    existing = first(records)
     if state == "absent":
         if existing is None:
             module.exit_json(changed=False, **{result_key: {}, "changed_fields": []})

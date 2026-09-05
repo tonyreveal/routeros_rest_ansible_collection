@@ -61,6 +61,9 @@ options:
   network:
     description: Optional network address associated with the entry.
     type: str
+  comment:
+    description: Optional comment for the IP address entry.
+    type: str
   state:
     description: Whether the IP address entry should exist.
     type: str
@@ -92,6 +95,7 @@ EXAMPLES = r"""
     interface: ether1
     enabled: true
     network: 192.0.2.0
+    comment: Router management address
 
 - name: Disable an address without removing it
   mikrotik.routeros.ip_address:
@@ -146,6 +150,7 @@ def main() -> None:
             "interface": {"type": "str", "required": True},
             "enabled": {"type": "bool", "default": True},
             "network": {"type": "str"},
+            "comment": {"type": "str"},
             "state": {"type": "str", "default": "present", "choices": ["absent", "present"]},
             "validate_certs": {"type": "bool", "default": True},
             "timeout": {"type": "int", "default": 30},
@@ -169,6 +174,8 @@ def main() -> None:
     }
     if params.get("network") is not None:
         desired["network"] = params["network"]
+    if params.get("comment") is not None:
+        desired["comment"] = params["comment"]
 
     client = RouterOSRestClient(
         host=params["host"], username=params["username"], password=params["password"],

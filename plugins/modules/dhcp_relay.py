@@ -67,8 +67,8 @@ options:
     description: Whether the DHCP relay should be enabled.
     type: bool
     default: true
-  vrf:
-    description: VRF used by the DHCP relay.
+  dhcp_server_vrf:
+    description: VRF used to reach the configured DHCP servers.
     type: str
     default: main
   delay_threshold:
@@ -120,7 +120,7 @@ EXAMPLES = r"""
       - 192.0.2.11
     local_address: 192.0.2.1
     enabled: true
-    vrf: main
+    dhcp_server_vrf: main
     delay_threshold: 0s
     local_address_as_src_ip: true
     add_relay_info: true
@@ -174,7 +174,7 @@ def main() -> None:
             "dhcp_servers": {"type": "list", "elements": "str", "required": True, "min": 1},
             "local_address": {"type": "str", "required": True},
             "enabled": {"type": "bool", "default": True},
-            "vrf": {"type": "str", "default": "main"},
+            "dhcp_server_vrf": {"type": "str", "default": "main"},
             "delay_threshold": {"type": "str", "default": "0s"},
             "local_address_as_src_ip": {"type": "bool", "default": False},
             "add_relay_info": {"type": "bool", "default": False},
@@ -203,7 +203,7 @@ def main() -> None:
         "dhcp-server": ",".join(dict.fromkeys(params["dhcp_servers"])),
         "local-address": params["local_address"],
         "disabled": not params["enabled"],
-        "vrf": params["vrf"],
+        "dhcp-server-vrf": params["dhcp_server_vrf"],
         "delay-threshold": params["delay_threshold"],
         "local-address-as-src-ip": params["local_address_as_src_ip"],
         "add-relay-info": params["add_relay_info"],
