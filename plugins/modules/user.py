@@ -204,7 +204,7 @@ def main() -> None:
             "inactivity_policy": {"type": "str", "default": "none", "choices": ["none", "lockscreen", "logout"]},
             "address": {"type": "str"},
             "ssh_public_key": {"type": "str", "no_log": True},
-            "update_password": {"type": "str", "default": "on_create", "choices": ["on_create", "always"]},
+            "update_password": {"type": "str", "default": "on_create", "choices": ["on_create", "always"], "no_log": True},
             "validate_certs": {"type": "bool", "default": True},
             "timeout": {"type": "int", "default": 30},
         },
@@ -318,6 +318,17 @@ def main() -> None:
                     changed_fields.append("ssh_public_key")
                     changed = True
     except RouterOSRestError as exc:
+        if params["state"] == "present" and params["update_password"] == "always" and any(
+            text in str(exc).lower()
+            for text in ("session closed", "connection closed", "closed", "reset", "reboot")
+        ):
+            module.exit_json(
+                changed=True,
+                state=params["state"],
+                user={"name": params["name"]},
+                changed_fields=["password"],
+                msg="RouterOS closed the session after accepting the password change.",
+            )
         module.fail_json(msg=str(exc))
 
     module.exit_json(
