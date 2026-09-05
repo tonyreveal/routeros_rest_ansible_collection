@@ -66,6 +66,9 @@ options:
     type: int
   mlag_id:
     type: int
+  hw:
+    type: bool
+    description: Whether hardware offloading is enabled for the bridge port.
   validate_certs:
     type: bool
     default: true
@@ -96,6 +99,7 @@ def main():
             "fast_leave": {"type": "bool"},
             "horizon": {"type": "int"},
             "mlag_id": {"type": "int"},
+            "hw": {"type": "bool"},
             "validate_certs": {"type": "bool", "default": True},
             "timeout": {"type": "int", "default": 30},
         },
@@ -115,6 +119,7 @@ def main():
         "fast-leave": "fast_leave",
         "horizon": "horizon",
         "mlag-id": "mlag_id",
+        "hw": "hw",
     }
     for key, source in mapping.items():
         if p.get(source) is not None:
@@ -135,4 +140,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

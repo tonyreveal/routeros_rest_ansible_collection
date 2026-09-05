@@ -213,8 +213,8 @@ def main() -> None:
     params = module.params
     if params["timeout"] <= 0:
         module.fail_json(msg="timeout must be greater than zero")
-    if params["state"] == "present" and not params.get("user_password"):
-        module.fail_json(msg="user_password is required when state is present")
+    if params["state"] == "present" and not params.get("user_password") and not params.get("ssh_public_key"):
+        module.fail_json(msg="user_password is required when state is present unless ssh_public_key is supplied")
     if params["state"] == "absent" and params.get("update_password") == "always":
         module.fail_json(msg="update_password=always cannot be used when state is absent")
     if params.get("address") is not None:
