@@ -33,6 +33,7 @@ options:
   vlan_ids: {type: str, required: true}
   tagged: {type: list, elements: str, default: []}
   untagged: {type: list, elements: str, default: []}
+  merge_ports: {type: bool, default: false}
   state: {type: str, choices: [present, absent], default: present}
   validate_certs: {type: bool, default: true}
   timeout: {type: int, default: 30}
@@ -50,6 +51,7 @@ def main():
             "vlan_ids": {"type": "str", "required": True},
             "tagged": {"type": "list", "elements": "str", "default": []},
             "untagged": {"type": "list", "elements": "str", "default": []},
+            "merge_ports": {"type": "bool", "default": False},
             "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
             "validate_certs": {"type": "bool", "default": True},
             "timeout": {"type": "int", "default": 30},
@@ -57,11 +59,29 @@ def main():
         supports_check_mode=True,
     )
     p = m.params
-    d = {"bridge": p["bridge"], "vlan-ids": p["vlan_ids"], "tagged": p["tagged"], "untagged": p["untagged"]}
+    tagged = list(dict.fromkeys(p["tagged"]))
+    untagged = list(dict.fromkeys(p["untagged"]))
+    client = RouterOSRestClient(p["host"], p["username"], p["password"], p["timeout"], p["validate_certs"])
+    if p["merge_ports"]:
+        records = client.get("interface/bridge/vlan", query={"bridge": p["bridge"], "vlan-ids": p["vlan_ids"]})
+        if isinstance(records, list):
+            records = [record for record in records if str(record.get("dynamic", "no")).lower() not in {"yes", "true"}]
+        existing = records[0] if isinstance(records, list) and records else {}
+        for field, ports in (("tagged", tagged), ("untagged", untagged)):
+            current = existing.get(field, "") if isinstance(existing, dict) else ""
+            if isinstance(current, str):
+                ports.extend(item for item in current.split(",") if item)
+            ports[:] = list(dict.fromkeys(ports))
+    d = {
+        "bridge": p["bridge"],
+        "vlan-ids": p["vlan_ids"],
+        "tagged": ",".join(tagged),
+        "untagged": ",".join(untagged),
+    }
     try:
         reconcile(
             m,
-            RouterOSRestClient(p["host"], p["username"], p["password"], p["timeout"], p["validate_certs"]),
+            client,
             "interface/bridge/vlan",
             {"bridge": p["bridge"], "vlan-ids": p["vlan_ids"]},
             d,

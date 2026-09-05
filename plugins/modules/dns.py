@@ -263,7 +263,7 @@ def main() -> None:
         if module.check_mode:
             result = {**current, **changes}
         else:
-            result = client.patch("ip/dns", changes)
+            result = client.post("ip/dns/set", changes)
     except RouterOSRestError as exc:
         module.fail_json(msg=str(exc))
 

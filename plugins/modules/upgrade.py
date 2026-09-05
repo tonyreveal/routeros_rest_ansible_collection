@@ -164,7 +164,7 @@ def main() -> None:
         else:
             changed_reason = "RouterOS package is current"
     except RouterOSRestError as exc:
-        if not any(text in str(exc).lower() for text in ("closed", "reset", "unreachable", "timeout", "reboot")):
+        if not any(text in str(exc).lower() for text in ("closed", "reset", "unreachable", "timeout", "timed out", "reboot")):
             module.fail_json(msg=str(exc))
         result = {"message": str(exc), "connection_closed": True}
         update_available = True
