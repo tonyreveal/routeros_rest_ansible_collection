@@ -62,6 +62,15 @@ options:
       bsd_syslog:
         description: Whether BSD syslog format is enabled.
         type: bool
+      remote_log_format:
+        description: Remote syslog message format.
+        type: str
+      remote_log_protocol:
+        description: Remote syslog transport protocol.
+        type: str
+      vrf:
+        description: VRF used to reach the remote logging server.
+        type: str
   state:
     description: Desired logging action state.
     type: str
@@ -114,7 +123,13 @@ def main() -> None:
         "host": {"type": "str", "required": True}, "username": {"type": "str", "required": True}, "password": {"type": "str", "required": True, "no_log": True}, "name": {"type": "str", "required": True}, "settings": {"type": "dict", "required": True}, "state": {"type": "str", "choices": ["present", "absent"], "default": "present"}, "validate_certs": {"type": "bool", "default": True}, "timeout": {"type": "int", "default": 30},
     }, supports_check_mode=True)
     p = module.params
-    settings = {key.replace("_", "-"): value for key, value in p["settings"].items()}
+    settings = {}
+    for key, value in p["settings"].items():
+        api_key = {
+            "remote_log_format": "remote-log-format",
+            "remote_log_protocol": "remote-protocol",
+        }.get(key, key.replace("_", "-"))
+        settings[api_key] = value
     run_config(module, "system/logging/action", {"name": p["name"]}, {"name": p["name"], **settings})
 
 if __name__ == "__main__":

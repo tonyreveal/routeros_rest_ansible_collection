@@ -195,7 +195,10 @@ def main() -> None:
             changes["vrf"] = desired["vrf"]
         if not changes:
             module.exit_json(changed=False, ntp_client=current, changed_fields=[])
-        result = {**current, **changes} if module.check_mode else client.patch("system/ntp/client", changes)
+        payload = dict(changes)
+        if "servers" in payload:
+            payload["servers"] = ",".join(payload["servers"])
+        result = {**current, **changes} if module.check_mode else client.post("system/ntp/client/set", payload)
     except RouterOSRestError as exc:
         module.fail_json(msg=str(exc))
     module.exit_json(changed=True, ntp_client=result, changed_fields=list(changes))
