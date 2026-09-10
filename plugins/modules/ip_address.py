@@ -3,11 +3,8 @@
 # GNU General Public License v3.0 or later (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.html)
 
 from __future__ import annotations
-
 import ipaddress
-
 from ansible.module_utils.basic import AnsibleModule
-
 from ansible_collections.mikrotik.routeros_rest.plugins.module_utils.routeros_rest import (
     RouterOSRestClient,
     RouterOSRestError,
@@ -183,7 +180,19 @@ def main() -> None:
     )
     try:
         records = client.get("ip/address", query={"address": params["address"], "interface": params["interface"]})
-        existing = _first_record(records)
+        if isinstance(records, list):
+            existing = next(
+                (
+                    record
+                    for record in records
+                    if isinstance(record, dict)
+                    and str(record.get("address", "")) == params["address"]
+                    and str(record.get("interface", "")) == params["interface"]
+                ),
+                None,
+            )
+        else:
+            existing = records if isinstance(records, dict) else None
         if params["state"] == "absent":
             if existing is None:
                 module.exit_json(changed=False, address={}, changed_fields=[])

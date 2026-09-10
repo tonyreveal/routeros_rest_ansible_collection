@@ -3,9 +3,7 @@
 # GNU General Public License v3.0 or later (see LICENSE or https://www.gnu.org/licenses/gpl-3.0.html)
 
 from __future__ import annotations
-
 from ansible.module_utils.basic import AnsibleModule
-
 from ansible_collections.mikrotik.routeros_rest.plugins.module_utils.routeros_rest import (
     RouterOSRestClient,
     RouterOSRestError,
@@ -168,7 +166,19 @@ def main() -> None:
     try:
         result = client.post("system/reset-configuration", payload)
     except RouterOSRestError as exc:
-        if any(text in str(exc).lower() for text in ("closed", "reset", "unreachable", "timeout", "reboot")):
+        error_text = str(exc).lower()
+        expected_disconnect = (
+            "connection reset" in error_text
+            or "connection refused" in error_text
+            or "connection closed" in error_text
+            or "remote end closed" in error_text
+            or "timed out" in error_text
+            or "timeout" in error_text
+            or "unreachable" in error_text
+            or "eof" in error_text
+            or "interrupted" in error_text
+        )
+        if expected_disconnect:
             module.exit_json(
                 changed=True,
                 reset_requested=True,
